@@ -1,4 +1,5 @@
 @AutoPilot.Api_HostAddress = http://localhost:8080
+@BearerToken = replace_with_token_after_login
 
 GET {{AutoPilot.Api_HostAddress}}/
 Accept: application/json
@@ -10,17 +11,36 @@ Accept: application/json
 
 ###
 
-GET {{AutoPilot.Api_HostAddress}}/api/users
-Accept: application/json
-
-###
-
-POST {{AutoPilot.Api_HostAddress}}/api/users
+POST {{AutoPilot.Api_HostAddress}}/api/auth/register
 Content-Type: application/json
 
 {
   "fullName": "Ravidu Avisara",
-  "email": "ravidu@example.com"
+  "email": "ravidu@example.com",
+  "password": "replaceWithStrongPassword1",
+  "role": "Admin"
 }
+
+###
+
+POST {{AutoPilot.Api_HostAddress}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "ravidu@example.com",
+  "password": "replaceWithStrongPassword1"
+}
+
+###
+
+GET {{AutoPilot.Api_HostAddress}}/api/users/me
+Accept: application/json
+Authorization: Bearer {{BearerToken}}
+
+###
+
+GET {{AutoPilot.Api_HostAddress}}/api/users
+Accept: application/json
+Authorization: Bearer {{BearerToken}}
 
 ###
