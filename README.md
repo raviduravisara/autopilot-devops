@@ -31,6 +31,12 @@ Merge flow:
 - Use GitHub Secrets for CI/CD and deployment configuration.
 - Keep all sensitive settings environment-based.
 
+## Local Run (Docker)
+1. Copy `.env.example` to `.env` and set your local PostgreSQL password.
+2. Run `docker compose up --build`.
+3. Open frontend: `http://localhost:5173`
+4. Check backend health: `http://localhost:8080/api/health`
+
 ## High-Level Implementation Phases
 1. Foundation and repository setup
 2. Solution skeleton and Docker baseline
@@ -44,7 +50,7 @@ Merge flow:
 
 ## Project Status
 - Planning complete
-- Implementation starts from Phase 1
+- Phase 2 scaffold ready
 
 ## Notes
 - Planning files are kept local and excluded from git tracking.
