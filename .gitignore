@@ -2,3 +2,13 @@ plan.md
 implementation-plan.md
 AutoPilot-DevOps-Master-Plan.md
 AutoPilot DevOps - Master Project Plan.md
+
+.env
+.env.*
+!.env.example
+
+frontend/node_modules/
+frontend/dist/
+
+backend/**/bin/
+backend/**/obj/
