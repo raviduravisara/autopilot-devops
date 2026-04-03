@@ -1,0 +1,110 @@
+name: Deploy to Azure
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: Docker image tag to deploy (latest or sha)
+        required: true
+        default: latest
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Deploy Backend and Frontend to Azure Container Apps
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Deploy container apps
+        shell: bash
+        env:
+          IMAGE_TAG: ${{ inputs.image_tag }}
+          AZURE_RESOURCE_GROUP: ${{ secrets.AZURE_RESOURCE_GROUP }}
+          AZURE_LOCATION: ${{ secrets.AZURE_LOCATION }}
+          AZURE_CONTAINERAPPS_ENV: ${{ secrets.AZURE_CONTAINERAPPS_ENV }}
+          AZURE_BACKEND_APP_NAME: ${{ secrets.AZURE_BACKEND_APP_NAME }}
+          AZURE_FRONTEND_APP_NAME: ${{ secrets.AZURE_FRONTEND_APP_NAME }}
+          AZURE_POSTGRES_CONNECTION_STRING: ${{ secrets.AZURE_POSTGRES_CONNECTION_STRING }}
+          AZURE_JWT_SIGNING_KEY: ${{ secrets.AZURE_JWT_SIGNING_KEY }}
+          AZURE_JWT_ISSUER: ${{ secrets.AZURE_JWT_ISSUER }}
+          AZURE_JWT_AUDIENCE: ${{ secrets.AZURE_JWT_AUDIENCE }}
+          AZURE_FRONTEND_ORIGIN: ${{ secrets.AZURE_FRONTEND_ORIGIN }}
+          AZURE_BACKEND_API_BASE_URL: ${{ secrets.AZURE_BACKEND_API_BASE_URL }}
+          GHCR_USERNAME: ${{ secrets.GHCR_USERNAME }}
+          GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
+          GITHUB_OWNER: ${{ github.repository_owner }}
+        run: |
+          set -euo pipefail
+
+          az config set extension.use_dynamic_install=yes_without_prompt
+
+          OWNER_LOWER=$(echo "$GITHUB_OWNER" | tr '[:upper:]' '[:lower:]')
+          BACKEND_IMAGE="ghcr.io/${OWNER_LOWER}/autopilot-backend:${IMAGE_TAG}"
+          FRONTEND_IMAGE="ghcr.io/${OWNER_LOWER}/autopilot-frontend:${IMAGE_TAG}"
+
+          az group create \
+            --name "$AZURE_RESOURCE_GROUP" \
+            --location "$AZURE_LOCATION"
+
+          if ! az containerapp env show --name "$AZURE_CONTAINERAPPS_ENV" --resource-group "$AZURE_RESOURCE_GROUP" >/dev/null 2>&1; then
+            az containerapp env create \
+              --name "$AZURE_CONTAINERAPPS_ENV" \
+              --resource-group "$AZURE_RESOURCE_GROUP" \
+              --location "$AZURE_LOCATION"
+          fi
+
+          az containerapp up \
+            --name "$AZURE_BACKEND_APP_NAME" \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --environment "$AZURE_CONTAINERAPPS_ENV" \
+            --image "$BACKEND_IMAGE" \
+            --ingress external \
+            --target-port 8080 \
+            --registry-server ghcr.io \
+            --registry-username "$GHCR_USERNAME" \
+            --registry-password "$GHCR_TOKEN" \
+            --secrets \
+              postgres-conn="$AZURE_POSTGRES_CONNECTION_STRING" \
+              jwt-signing-key="$AZURE_JWT_SIGNING_KEY" \
+            --env-vars \
+              ASPNETCORE_ENVIRONMENT=Production \
+              ASPNETCORE_URLS=http://+:8080 \
+              ConnectionStrings__DefaultConnection=secretref:postgres-conn \
+              Jwt__Issuer="$AZURE_JWT_ISSUER" \
+              Jwt__Audience="$AZURE_JWT_AUDIENCE" \
+              Jwt__SigningKey=secretref:jwt-signing-key \
+              Jwt__ExpiresMinutes=60 \
+              Cors__AllowedOrigins__0="$AZURE_FRONTEND_ORIGIN" \
+            --min-replicas 0 \
+            --max-replicas 1
+
+          az containerapp up \
+            --name "$AZURE_FRONTEND_APP_NAME" \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --environment "$AZURE_CONTAINERAPPS_ENV" \
+            --image "$FRONTEND_IMAGE" \
+            --ingress external \
+            --target-port 5173 \
+            --registry-server ghcr.io \
+            --registry-username "$GHCR_USERNAME" \
+            --registry-password "$GHCR_TOKEN" \
+            --env-vars \
+              VITE_API_BASE_URL="$AZURE_BACKEND_API_BASE_URL" \
+            --min-replicas 0 \
+            --max-replicas 1
+
+          BACKEND_FQDN=$(az containerapp show --name "$AZURE_BACKEND_APP_NAME" --resource-group "$AZURE_RESOURCE_GROUP" --query properties.configuration.ingress.fqdn -o tsv)
+          FRONTEND_FQDN=$(az containerapp show --name "$AZURE_FRONTEND_APP_NAME" --resource-group "$AZURE_RESOURCE_GROUP" --query properties.configuration.ingress.fqdn -o tsv)
+
+          echo "Backend URL: https://${BACKEND_FQDN}"
+          echo "Frontend URL: https://${FRONTEND_FQDN}"
