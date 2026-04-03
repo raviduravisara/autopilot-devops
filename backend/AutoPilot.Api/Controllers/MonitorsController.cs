@@ -1,7 +1,7 @@
-using System.Diagnostics;
 using System.Security.Claims;
 using AutoPilot.Api.Data;
 using AutoPilot.Api.Models;
+using AutoPilot.Api.Services.Monitoring;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -15,12 +15,12 @@ namespace AutoPilot.Api.Controllers;
 public class MonitorsController : ControllerBase
 {
     private readonly AppDbContext _dbContext;
-    private readonly IHttpClientFactory _httpClientFactory;
+    private readonly IMonitorCheckRunner _monitorCheckRunner;
 
-    public MonitorsController(AppDbContext dbContext, IHttpClientFactory httpClientFactory)
+    public MonitorsController(AppDbContext dbContext, IMonitorCheckRunner monitorCheckRunner)
     {
         _dbContext = dbContext;
-        _httpClientFactory = httpClientFactory;
+        _monitorCheckRunner = monitorCheckRunner;
     }
 
     [HttpGet]
@@ -43,13 +43,68 @@ public class MonitorsController : ControllerBase
                 x.CheckIntervalSeconds,
                 x.IsActive,
                 x.CreatedAtUtc,
-                x.CheckRuns
-                    .OrderByDescending(run => run.ExecutedAtUtc)
-                    .Select(run => new LatestCheckResponse(run.ExecutedAtUtc, run.IsSuccess, run.StatusCode, run.ResponseTimeMs, run.ErrorMessage))
-                    .FirstOrDefault()))
+                x.LastCheckedAtUtc,
+                x.LastCheckSucceeded,
+                x.LastStatusCode,
+                x.LastResponseTimeMs,
+                x.LastErrorMessage,
+                x.ConsecutiveSuccessCount,
+                x.ConsecutiveFailureCount))
             .ToListAsync(cancellationToken);
 
         return Ok(monitors);
+    }
+
+    [HttpGet("summary")]
+    public async Task<ActionResult<MonitorsSummaryResponse>> Summary(CancellationToken cancellationToken)
+    {
+        var userId = GetUserId();
+        if (userId is null)
+        {
+            return Unauthorized();
+        }
+
+        var monitors = await _dbContext.Monitors
+            .Where(x => x.OwnerUserId == userId)
+            .Select(x => new { x.IsActive, x.LastCheckSucceeded })
+            .ToListAsync(cancellationToken);
+
+        var total = monitors.Count;
+        var paused = monitors.Count(x => !x.IsActive);
+        var up = monitors.Count(x => x.IsActive && x.LastCheckSucceeded == true);
+        var down = monitors.Count(x => x.IsActive && x.LastCheckSucceeded == false);
+        var unknown = monitors.Count(x => x.IsActive && x.LastCheckSucceeded == null);
+
+        return Ok(new MonitorsSummaryResponse(total, up, down, paused, unknown));
+    }
+
+    [HttpGet("recent-checks")]
+    public async Task<ActionResult<IReadOnlyList<RecentCheckResponse>>> RecentChecks([FromQuery] int limit = 20, CancellationToken cancellationToken = default)
+    {
+        var userId = GetUserId();
+        if (userId is null)
+        {
+            return Unauthorized();
+        }
+
+        limit = Math.Clamp(limit, 1, 200);
+
+        var checks = await _dbContext.MonitorCheckRuns
+            .Where(x => x.Monitor != null && x.Monitor.OwnerUserId == userId)
+            .OrderByDescending(x => x.ExecutedAtUtc)
+            .Take(limit)
+            .Select(x => new RecentCheckResponse(
+                x.Id,
+                x.MonitorId,
+                x.Monitor!.Name,
+                x.ExecutedAtUtc,
+                x.IsSuccess,
+                x.StatusCode,
+                x.ResponseTimeMs,
+                x.ErrorMessage))
+            .ToListAsync(cancellationToken);
+
+        return Ok(checks);
     }
 
     [HttpPost]
@@ -96,8 +151,7 @@ public class MonitorsController : ControllerBase
         _dbContext.Monitors.Add(monitor);
         await _dbContext.SaveChangesAsync(cancellationToken);
 
-        return CreatedAtAction(nameof(GetById), new { id = monitor.Id },
-            new MonitorListItemResponse(monitor.Id, monitor.Name, monitor.TargetUrl, monitor.Method, monitor.CheckIntervalSeconds, monitor.IsActive, monitor.CreatedAtUtc, null));
+        return CreatedAtAction(nameof(GetById), new { id = monitor.Id }, ToResponse(monitor));
     }
 
     [HttpGet("{id:guid}")]
@@ -110,27 +164,14 @@ public class MonitorsController : ControllerBase
         }
 
         var monitor = await _dbContext.Monitors
-            .Where(x => x.Id == id && x.OwnerUserId == userId)
-            .Select(x => new MonitorListItemResponse(
-                x.Id,
-                x.Name,
-                x.TargetUrl,
-                x.Method,
-                x.CheckIntervalSeconds,
-                x.IsActive,
-                x.CreatedAtUtc,
-                x.CheckRuns
-                    .OrderByDescending(run => run.ExecutedAtUtc)
-                    .Select(run => new LatestCheckResponse(run.ExecutedAtUtc, run.IsSuccess, run.StatusCode, run.ResponseTimeMs, run.ErrorMessage))
-                    .FirstOrDefault()))
-            .FirstOrDefaultAsync(cancellationToken);
+            .FirstOrDefaultAsync(x => x.Id == id && x.OwnerUserId == userId, cancellationToken);
 
         if (monitor is null)
         {
             return NotFound();
         }
 
-        return Ok(monitor);
+        return Ok(ToResponse(monitor));
     }
 
     [HttpPut("{id:guid}")]
@@ -178,13 +219,7 @@ public class MonitorsController : ControllerBase
 
         await _dbContext.SaveChangesAsync(cancellationToken);
 
-        var latest = await _dbContext.MonitorCheckRuns
-            .Where(x => x.MonitorId == monitor.Id)
-            .OrderByDescending(x => x.ExecutedAtUtc)
-            .Select(run => new LatestCheckResponse(run.ExecutedAtUtc, run.IsSuccess, run.StatusCode, run.ResponseTimeMs, run.ErrorMessage))
-            .FirstOrDefaultAsync(cancellationToken);
-
-        return Ok(new MonitorListItemResponse(monitor.Id, monitor.Name, monitor.TargetUrl, monitor.Method, monitor.CheckIntervalSeconds, monitor.IsActive, monitor.CreatedAtUtc, latest));
+        return Ok(ToResponse(monitor));
     }
 
     [HttpDelete("{id:guid}")]
@@ -216,44 +251,19 @@ public class MonitorsController : ControllerBase
             return Unauthorized();
         }
 
-        var monitor = await _dbContext.Monitors.FirstOrDefaultAsync(x => x.Id == id && x.OwnerUserId == userId, cancellationToken);
-        if (monitor is null)
+        var monitorExists = await _dbContext.Monitors.AnyAsync(x => x.Id == id && x.OwnerUserId == userId, cancellationToken);
+        if (!monitorExists)
         {
             return NotFound();
         }
 
-        var client = _httpClientFactory.CreateClient();
-        client.Timeout = TimeSpan.FromSeconds(20);
-
-        var checkRun = new MonitorCheckRun
+        var run = await _monitorCheckRunner.RunCheckAsync(id, cancellationToken);
+        if (run is null)
         {
-            MonitorId = monitor.Id,
-            ExecutedAtUtc = DateTime.UtcNow
-        };
-
-        var stopwatch = Stopwatch.StartNew();
-        try
-        {
-            using var request = new HttpRequestMessage(new HttpMethod(monitor.Method), monitor.TargetUrl);
-            using var response = await client.SendAsync(request, cancellationToken);
-            stopwatch.Stop();
-
-            checkRun.ResponseTimeMs = (int)stopwatch.ElapsedMilliseconds;
-            checkRun.StatusCode = (int)response.StatusCode;
-            checkRun.IsSuccess = response.IsSuccessStatusCode;
-        }
-        catch (Exception ex)
-        {
-            stopwatch.Stop();
-            checkRun.ResponseTimeMs = (int)stopwatch.ElapsedMilliseconds;
-            checkRun.IsSuccess = false;
-            checkRun.ErrorMessage = ex.Message;
+            return NotFound();
         }
 
-        _dbContext.MonitorCheckRuns.Add(checkRun);
-        await _dbContext.SaveChangesAsync(cancellationToken);
-
-        return Ok(new MonitorCheckRunResponse(checkRun.Id, checkRun.MonitorId, checkRun.ExecutedAtUtc, checkRun.IsSuccess, checkRun.StatusCode, checkRun.ResponseTimeMs, checkRun.ErrorMessage));
+        return Ok(new MonitorCheckRunResponse(run.Id, run.MonitorId, run.ExecutedAtUtc, run.IsSuccess, run.StatusCode, run.ResponseTimeMs, run.ErrorMessage));
     }
 
     [HttpGet("{id:guid}/checks")]
@@ -301,6 +311,25 @@ public class MonitorsController : ControllerBase
         };
     }
 
+    private static MonitorListItemResponse ToResponse(MonitorEntity monitor)
+    {
+        return new MonitorListItemResponse(
+            monitor.Id,
+            monitor.Name,
+            monitor.TargetUrl,
+            monitor.Method,
+            monitor.CheckIntervalSeconds,
+            monitor.IsActive,
+            monitor.CreatedAtUtc,
+            monitor.LastCheckedAtUtc,
+            monitor.LastCheckSucceeded,
+            monitor.LastStatusCode,
+            monitor.LastResponseTimeMs,
+            monitor.LastErrorMessage,
+            monitor.ConsecutiveSuccessCount,
+            monitor.ConsecutiveFailureCount);
+    }
+
     public sealed record CreateMonitorRequest(string Name, string TargetUrl, string Method, int CheckIntervalSeconds, bool IsActive);
     public sealed record UpdateMonitorRequest(string Name, string TargetUrl, string Method, int CheckIntervalSeconds, bool IsActive);
 
@@ -312,13 +341,29 @@ public class MonitorsController : ControllerBase
         int CheckIntervalSeconds,
         bool IsActive,
         DateTime CreatedAtUtc,
-        LatestCheckResponse? LatestCheck);
-
-    public sealed record LatestCheckResponse(DateTime ExecutedAtUtc, bool IsSuccess, int? StatusCode, int? ResponseTimeMs, string? ErrorMessage);
+        DateTime? LastCheckedAtUtc,
+        bool? LastCheckSucceeded,
+        int? LastStatusCode,
+        int? LastResponseTimeMs,
+        string? LastErrorMessage,
+        int ConsecutiveSuccessCount,
+        int ConsecutiveFailureCount);
 
     public sealed record MonitorCheckRunResponse(
         Guid Id,
         Guid MonitorId,
+        DateTime ExecutedAtUtc,
+        bool IsSuccess,
+        int? StatusCode,
+        int? ResponseTimeMs,
+        string? ErrorMessage);
+
+    public sealed record MonitorsSummaryResponse(int Total, int Up, int Down, int Paused, int Unknown);
+
+    public sealed record RecentCheckResponse(
+        Guid Id,
+        Guid MonitorId,
+        string MonitorName,
         DateTime ExecutedAtUtc,
         bool IsSuccess,
         int? StatusCode,

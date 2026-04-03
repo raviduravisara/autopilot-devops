@@ -21,7 +21,7 @@ body {
 }
 
 .card {
-  width: min(1080px, 100%);
+  width: min(1150px, 100%);
   background: #ffffff;
   border: 1px solid #bfdbfe;
   border-radius: 14px;
@@ -65,6 +65,36 @@ body {
   display: grid;
   gap: 1rem;
 }
+
+.summary-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 0.65rem;
+}
+
+.summary-card {
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  padding: 0.7rem;
+  background: #f8fafc;
+}
+
+.summary-card h3 {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #334155;
+}
+
+.summary-card p {
+  margin: 0.45rem 0 0;
+  font-size: 1.3rem;
+  font-weight: 700;
+}
+
+.summary-card.up { border-color: #86efac; }
+.summary-card.down { border-color: #fca5a5; }
+.summary-card.paused { border-color: #cbd5e1; }
+.summary-card.unknown { border-color: #fcd34d; }
 
 .form {
   margin-top: 0.75rem;
@@ -122,7 +152,8 @@ button:disabled {
   flex-wrap: wrap;
 }
 
-.monitor-list {
+.monitor-list,
+.recent-checks {
   border-top: 1px solid #e2e8f0;
   padding-top: 0.8rem;
 }
@@ -155,6 +186,27 @@ button:disabled {
   padding-left: 1.2rem;
   display: grid;
   gap: 0.35rem;
+}
+
+.table-wrapper {
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+th,
+td {
+  border-bottom: 1px solid #e2e8f0;
+  text-align: left;
+  padding: 0.55rem;
+}
+
+th {
+  color: #334155;
 }
 
 .feedback {
