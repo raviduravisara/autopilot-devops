@@ -50,6 +50,16 @@ builder.Services
 builder.Services.AddAuthorization();
 builder.Services.AddHttpClient();
 builder.Services.AddHostedService<MonitorSchedulerService>();
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("FrontendDev", policy =>
+    {
+        policy
+            .WithOrigins("http://localhost:5173")
+            .AllowAnyHeader()
+            .AllowAnyMethod();
+    });
+});
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
@@ -93,6 +103,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+app.UseCors("FrontendDev");
 app.UseAuthentication();
 app.UseAuthorization();
 
