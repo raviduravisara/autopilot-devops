@@ -4,6 +4,7 @@ using AutoPilot.Api.Models;
 using AutoPilot.Api.Services.Monitoring;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using MonitorEntity = AutoPilot.Api.Models.Monitor;
 
@@ -242,6 +243,7 @@ public class MonitorsController : ControllerBase
         return NoContent();
     }
 
+    [EnableRateLimiting("run-check")]
     [HttpPost("{id:guid}/run-check")]
     public async Task<ActionResult<MonitorCheckRunResponse>> RunCheck(Guid id, CancellationToken cancellationToken)
     {
@@ -370,3 +372,4 @@ public class MonitorsController : ControllerBase
         int? ResponseTimeMs,
         string? ErrorMessage);
 }
+
