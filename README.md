@@ -59,13 +59,34 @@ Minimum checks required before merging to `development` and `main`:
 
 These gates are enforced in `.github/workflows/ci.yml`.
 
+## CI/CD (Phase 7)
+Branch-aware GitHub Actions setup:
+- `feature/*` and PRs: fast validation (`backend` + `frontend` jobs).
+- `development`: full CI (`backend` + `frontend` + Docker validation).
+- `main`: full CI plus release workflow to publish Docker images to GHCR.
+
+Workflows:
+- `.github/workflows/ci.yml`
+- `.github/workflows/release-images.yml`
+
+Published images from `main`:
+- `ghcr.io/<owner>/autopilot-backend:latest`
+- `ghcr.io/<owner>/autopilot-frontend:latest`
+- SHA tags are also generated for traceable releases.
+
+## GitHub Settings Needed
+- Ensure Actions permission allows package write for this repository.
+- Keep `main` protected and require CI checks before merge.
+- Keep secrets in GitHub Secrets only (no plaintext in repo).
+
 ## Project Status
 - Planning complete
 - Phase 2 scaffold ready
 - Phase 3 backend foundation ready
 - Phase 4 monitoring MVP ready
 - Phase 5 security hardening ready
-- Phase 6 testing and quality gates in progress
+- Phase 6 testing and quality gates ready
+- Phase 7 CI/CD pipeline ready
 
 ## Notes
 - Planning files are kept local and excluded from git tracking.
