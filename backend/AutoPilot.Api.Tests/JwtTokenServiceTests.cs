@@ -25,7 +25,6 @@ public class JwtTokenServiceTests
             Id = Guid.NewGuid(),
             FullName = "Ravidu",
             Email = "ravidu@example.com",
-            Role = AppRole.Admin,
             PasswordHash = "ignored"
         };
 
