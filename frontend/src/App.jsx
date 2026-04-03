@@ -4,6 +4,8 @@ import {
   createMonitor,
   deleteMonitor,
   getMe,
+  getMonitorsSummary,
+  getRecentChecks,
   listMonitors,
   loginUser,
   registerUser,
@@ -31,6 +33,14 @@ const initialMonitorForm = {
   isActive: true
 };
 
+const initialSummary = {
+  total: 0,
+  up: 0,
+  down: 0,
+  paused: 0,
+  unknown: 0
+};
+
 function App() {
   const [mode, setMode] = useState("login");
   const [registerForm, setRegisterForm] = useState(initialRegister);
@@ -38,6 +48,8 @@ function App() {
   const [token, setToken] = useState(() => loadToken());
   const [me, setMe] = useState(null);
   const [monitors, setMonitors] = useState([]);
+  const [summary, setSummary] = useState(initialSummary);
+  const [recentChecks, setRecentChecks] = useState([]);
   const [monitorForm, setMonitorForm] = useState(initialMonitorForm);
   const [editingMonitorId, setEditingMonitorId] = useState("");
   const [message, setMessage] = useState("");
@@ -46,21 +58,32 @@ function App() {
 
   const isAuthenticated = useMemo(() => !!token, [token]);
 
+  async function loadDashboardData(activeToken) {
+    const [profile, monitorList, summaryData, checks] = await Promise.all([
+      getMe(activeToken),
+      listMonitors(activeToken),
+      getMonitorsSummary(activeToken),
+      getRecentChecks(activeToken, 25)
+    ]);
+
+    setMe(profile);
+    setMonitors(monitorList);
+    setSummary(summaryData);
+    setRecentChecks(checks);
+  }
+
   useEffect(() => {
     if (!token) {
       setMe(null);
       setMonitors([]);
+      setSummary(initialSummary);
+      setRecentChecks([]);
       return;
     }
 
     let mounted = true;
 
-    Promise.all([getMe(token), listMonitors(token)])
-      .then(([profile, monitorList]) => {
-        if (!mounted) return;
-        setMe(profile);
-        setMonitors(monitorList);
-      })
+    loadDashboardData(token)
       .catch((err) => {
         if (!mounted) return;
         clearToken();
@@ -129,10 +152,9 @@ function App() {
     }
   }
 
-  async function refreshMonitors() {
+  async function refreshDashboard() {
     if (!token) return;
-    const data = await listMonitors(token);
-    setMonitors(data);
+    await loadDashboardData(token);
   }
 
   async function handleMonitorSubmit(event) {
@@ -152,7 +174,7 @@ function App() {
 
       setMonitorForm(initialMonitorForm);
       setEditingMonitorId("");
-      await refreshMonitors();
+      await refreshDashboard();
     } catch (err) {
       setError(err.message);
     } finally {
@@ -189,7 +211,7 @@ function App() {
       if (editingMonitorId === monitorId) {
         cancelEditMonitor();
       }
-      await refreshMonitors();
+      await refreshDashboard();
     } catch (err) {
       setError(err.message);
     } finally {
@@ -205,7 +227,7 @@ function App() {
     try {
       await runMonitorCheck(token, monitorId);
       setMessage("Check executed.");
-      await refreshMonitors();
+      await refreshDashboard();
     } catch (err) {
       setError(err.message);
     } finally {
@@ -218,6 +240,8 @@ function App() {
     setToken("");
     setMe(null);
     setMonitors([]);
+    setSummary(initialSummary);
+    setRecentChecks([]);
     setMonitorForm(initialMonitorForm);
     setEditingMonitorId("");
     setMessage("You are logged out.");
@@ -291,6 +315,14 @@ function App() {
               <button type="button" className="danger" onClick={handleLogout}>Logout</button>
             </section>
 
+            <section className="summary-cards">
+              <article className="summary-card"><h3>Total</h3><p>{summary.total}</p></article>
+              <article className="summary-card up"><h3>Up</h3><p>{summary.up}</p></article>
+              <article className="summary-card down"><h3>Down</h3><p>{summary.down}</p></article>
+              <article className="summary-card paused"><h3>Paused</h3><p>{summary.paused}</p></article>
+              <article className="summary-card unknown"><h3>Unknown</h3><p>{summary.unknown}</p></article>
+            </section>
+
             <section className="monitor-editor">
               <h2>{editingMonitorId ? "Edit Monitor" : "Create Monitor"}</h2>
               <form className="form" onSubmit={handleMonitorSubmit}>
@@ -351,10 +383,12 @@ function App() {
                     <p><strong>Status:</strong> {monitor.isActive ? "Active" : "Paused"}</p>
                     <p>
                       <strong>Latest Check:</strong>{" "}
-                      {monitor.latestCheck
-                        ? `${monitor.latestCheck.isSuccess ? "UP" : "DOWN"} | ${monitor.latestCheck.statusCode ?? "-"} | ${monitor.latestCheck.responseTimeMs ?? "-"}ms`
+                      {monitor.lastCheckedAtUtc
+                        ? `${monitor.lastCheckSucceeded ? "UP" : "DOWN"} | ${monitor.lastStatusCode ?? "-"} | ${monitor.lastResponseTimeMs ?? "-"}ms`
                         : "Not run yet"}
                     </p>
+                    <p><strong>Consecutive Success:</strong> {monitor.consecutiveSuccessCount}</p>
+                    <p><strong>Consecutive Fail:</strong> {monitor.consecutiveFailureCount}</p>
                     <div className="row-actions">
                       <button type="button" onClick={() => handleRunCheck(monitor.id)} disabled={loading}>Run Check</button>
                       <button type="button" className="secondary" onClick={() => startEditMonitor(monitor)} disabled={loading}>Edit</button>
@@ -363,6 +397,37 @@ function App() {
                   </article>
                 ))}
               </div>
+            </section>
+
+            <section className="recent-checks">
+              <h2>Recent Checks</h2>
+              {recentChecks.length === 0 && <p>No check history yet.</p>}
+              {recentChecks.length > 0 && (
+                <div className="table-wrapper">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Monitor</th>
+                        <th>Time</th>
+                        <th>Result</th>
+                        <th>Status</th>
+                        <th>Response</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {recentChecks.map((check) => (
+                        <tr key={check.id}>
+                          <td>{check.monitorName}</td>
+                          <td>{new Date(check.executedAtUtc).toLocaleString()}</td>
+                          <td>{check.isSuccess ? "UP" : "DOWN"}</td>
+                          <td>{check.statusCode ?? "-"}</td>
+                          <td>{check.responseTimeMs ? `${check.responseTimeMs}ms` : "-"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </section>
           </section>
         )}

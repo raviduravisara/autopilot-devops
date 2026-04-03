@@ -37,7 +37,11 @@ public class AppDbContext : DbContext
             entity.Property(x => x.CheckIntervalSeconds).IsRequired();
             entity.Property(x => x.IsActive).IsRequired();
             entity.Property(x => x.CreatedAtUtc).IsRequired();
+            entity.Property(x => x.LastErrorMessage).HasMaxLength(1000);
+            entity.Property(x => x.ConsecutiveSuccessCount).IsRequired();
+            entity.Property(x => x.ConsecutiveFailureCount).IsRequired();
             entity.HasIndex(x => new { x.OwnerUserId, x.Name });
+            entity.HasIndex(x => new { x.IsActive, x.LastCheckedAtUtc });
 
             entity.HasOne(x => x.OwnerUser)
                 .WithMany()

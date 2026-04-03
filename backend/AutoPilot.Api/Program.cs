@@ -1,7 +1,9 @@
 using System.Text;
+using AutoPilot.Api.Background;
 using AutoPilot.Api.Config;
 using AutoPilot.Api.Data;
 using AutoPilot.Api.Services;
+using AutoPilot.Api.Services.Monitoring;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -24,6 +26,7 @@ if (string.IsNullOrWhiteSpace(jwtOptions.SigningKey) || jwtOptions.SigningKey.Le
 
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection(JwtOptions.SectionName));
 builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
+builder.Services.AddScoped<IMonitorCheckRunner, MonitorCheckRunner>();
 
 builder.Services.AddDbContext<AppDbContext>(options => options.UseNpgsql(connectionString));
 
@@ -45,6 +48,7 @@ builder.Services
 
 builder.Services.AddAuthorization();
 builder.Services.AddHttpClient();
+builder.Services.AddHostedService<MonitorSchedulerService>();
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();

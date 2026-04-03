@@ -37,6 +37,14 @@ export async function listMonitors(token) {
   return request("/api/monitors", { token });
 }
 
+export async function getMonitorsSummary(token) {
+  return request("/api/monitors/summary", { token });
+}
+
+export async function getRecentChecks(token, limit = 20) {
+  return request(`/api/monitors/recent-checks?limit=${limit}`, { token });
+}
+
 export async function createMonitor(token, data) {
   return request("/api/monitors", { method: "POST", token, body: data });
 }

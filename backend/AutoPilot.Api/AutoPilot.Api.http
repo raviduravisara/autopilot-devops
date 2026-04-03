@@ -59,6 +59,18 @@ Authorization: Bearer {{BearerToken}}
 
 ###
 
+GET {{AutoPilot.Api_HostAddress}}/api/monitors/summary
+Accept: application/json
+Authorization: Bearer {{BearerToken}}
+
+###
+
+GET {{AutoPilot.Api_HostAddress}}/api/monitors/recent-checks?limit=20
+Accept: application/json
+Authorization: Bearer {{BearerToken}}
+
+###
+
 POST {{AutoPilot.Api_HostAddress}}/api/monitors/{{MonitorId}}/run-check
 Authorization: Bearer {{BearerToken}}
 
