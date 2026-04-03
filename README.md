@@ -74,6 +74,40 @@ Published images from `main`:
 - `ghcr.io/<owner>/autopilot-frontend:latest`
 - SHA tags are also generated for traceable releases.
 
+## Azure Deployment (Phase 8)
+Deployment target: Azure Container Apps (cost-controlled baseline).
+
+Workflow:
+- `.github/workflows/deploy-azure.yml`
+- Trigger mode: manual (`workflow_dispatch`) so you control credit usage.
+
+### Required GitHub Secrets (Repository Secrets)
+- `AZURE_CREDENTIALS` (service principal JSON for `azure/login`)
+- `AZURE_RESOURCE_GROUP`
+- `AZURE_LOCATION` (for example `southeastasia`)
+- `AZURE_CONTAINERAPPS_ENV`
+- `AZURE_BACKEND_APP_NAME`
+- `AZURE_FRONTEND_APP_NAME`
+- `AZURE_POSTGRES_CONNECTION_STRING`
+- `AZURE_JWT_SIGNING_KEY`
+- `AZURE_JWT_ISSUER`
+- `AZURE_JWT_AUDIENCE`
+- `AZURE_FRONTEND_ORIGIN` (frontend URL, used by backend CORS)
+- `AZURE_BACKEND_API_BASE_URL` (backend base URL used by frontend)
+- `GHCR_USERNAME`
+- `GHCR_TOKEN` (PAT with `read:packages` to pull private GHCR images)
+
+### Deployment Flow
+1. Merge to `main` to publish images (`release-images.yml`).
+2. In GitHub Actions, run **Deploy to Azure** workflow manually.
+3. Choose image tag (`latest` or a SHA tag).
+4. Workflow creates/updates Azure Container Apps and prints backend/frontend URLs.
+
+### Cost-Control Defaults
+- Min replicas set to `0` (scale to zero when idle).
+- Manual deploy trigger only (no auto deploy on every push).
+- Start with small usage and monitor Azure cost dashboard weekly.
+
 ## GitHub Settings Needed
 - Ensure Actions permission allows package write for this repository.
 - Keep `main` protected and require CI checks before merge.
@@ -87,6 +121,7 @@ Published images from `main`:
 - Phase 5 security hardening ready
 - Phase 6 testing and quality gates ready
 - Phase 7 CI/CD pipeline ready
+- Phase 8 Azure deployment baseline ready
 
 ## Notes
 - Planning files are kept local and excluded from git tracking.
