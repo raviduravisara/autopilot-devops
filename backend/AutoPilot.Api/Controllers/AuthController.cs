@@ -1,5 +1,4 @@
 using AutoPilot.Api.Data;
-using AutoPilot.Api.Models;
 using AutoPilot.Api.Security;
 using AutoPilot.Api.Services;
 using Microsoft.AspNetCore.Mvc;
@@ -40,25 +39,18 @@ public class AuthController : ControllerBase
             return Conflict(new { message = "Email is already registered." });
         }
 
-        var role = AppRole.Patient;
-        if (!string.IsNullOrWhiteSpace(request.Role) && Enum.TryParse<AppRole>(request.Role, true, out var parsedRole))
-        {
-            role = parsedRole;
-        }
-
-        var user = new UserAccount
+        var user = new Models.UserAccount
         {
             FullName = request.FullName.Trim(),
             Email = email,
-            PasswordHash = PasswordHasher.Hash(request.Password),
-            Role = role
+            PasswordHash = PasswordHasher.Hash(request.Password)
         };
 
         _dbContext.UserAccounts.Add(user);
         await _dbContext.SaveChangesAsync(cancellationToken);
 
         var token = _tokenService.CreateToken(user);
-        return Ok(new AuthResponse(token, new UserView(user.Id, user.FullName, user.Email, user.Role.ToString(), user.CreatedAtUtc)));
+        return Ok(new AuthResponse(token, new UserView(user.Id, user.FullName, user.Email, user.CreatedAtUtc)));
     }
 
     [HttpPost("login")]
@@ -77,11 +69,11 @@ public class AuthController : ControllerBase
         }
 
         var token = _tokenService.CreateToken(user);
-        return Ok(new AuthResponse(token, new UserView(user.Id, user.FullName, user.Email, user.Role.ToString(), user.CreatedAtUtc)));
+        return Ok(new AuthResponse(token, new UserView(user.Id, user.FullName, user.Email, user.CreatedAtUtc)));
     }
 
-    public sealed record RegisterRequest(string FullName, string Email, string Password, string? Role);
+    public sealed record RegisterRequest(string FullName, string Email, string Password);
     public sealed record LoginRequest(string Email, string Password);
     public sealed record AuthResponse(string AccessToken, UserView User);
-    public sealed record UserView(Guid Id, string FullName, string Email, string Role, DateTime CreatedAtUtc);
+    public sealed record UserView(Guid Id, string FullName, string Email, DateTime CreatedAtUtc);
 }

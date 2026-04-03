@@ -5,8 +5,7 @@ import { clearToken, loadToken, saveToken } from "./api/tokenStore";
 const initialRegister = {
   fullName: "",
   email: "",
-  password: "",
-  role: "Patient"
+  password: ""
 };
 
 const initialLogin = {
@@ -163,14 +162,6 @@ function App() {
               Password
               <input name="password" type="password" value={registerForm.password} onChange={onRegisterChange} minLength={8} required />
             </label>
-            <label>
-              Role
-              <select name="role" value={registerForm.role} onChange={onRegisterChange}>
-                <option value="Patient">Patient</option>
-                <option value="Staff">Staff</option>
-                <option value="Admin">Admin</option>
-              </select>
-            </label>
             <button type="submit" disabled={loading}>
               {loading ? "Creating account..." : "Register"}
             </button>
@@ -184,7 +175,6 @@ function App() {
               <ul>
                 <li><strong>Name:</strong> {me.fullName}</li>
                 <li><strong>Email:</strong> {me.email}</li>
-                <li><strong>Role:</strong> {me.role}</li>
                 <li><strong>Created:</strong> {new Date(me.createdAtUtc).toLocaleString()}</li>
               </ul>
             ) : (

@@ -17,8 +17,7 @@ Content-Type: application/json
 {
   "fullName": "Ravidu Avisara",
   "email": "ravidu@example.com",
-  "password": "replaceWithStrongPassword1",
-  "role": "Admin"
+  "password": "replaceWithStrongPassword1"
 }
 
 ###

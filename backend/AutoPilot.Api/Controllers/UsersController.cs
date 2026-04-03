@@ -1,5 +1,4 @@
 using AutoPilot.Api.Data;
-using AutoPilot.Api.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -18,25 +17,25 @@ public class UsersController : ControllerBase
         _dbContext = dbContext;
     }
 
-    [Authorize(Policy = "ManageUsers")]
+    [Authorize]
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<UserView>>> List(CancellationToken cancellationToken)
     {
         var users = await _dbContext.UserAccounts
             .OrderByDescending(x => x.CreatedAtUtc)
-            .Select(x => new UserView(x.Id, x.FullName, x.Email, x.Role.ToString(), x.CreatedAtUtc))
+            .Select(x => new UserView(x.Id, x.FullName, x.Email, x.CreatedAtUtc))
             .ToListAsync(cancellationToken);
 
         return Ok(users);
     }
 
-    [Authorize(Policy = "ManageUsers")]
+    [Authorize]
     [HttpGet("{id:guid}")]
     public async Task<ActionResult<UserView>> GetById(Guid id, CancellationToken cancellationToken)
     {
         var user = await _dbContext.UserAccounts
             .Where(x => x.Id == id)
-            .Select(x => new UserView(x.Id, x.FullName, x.Email, x.Role.ToString(), x.CreatedAtUtc))
+            .Select(x => new UserView(x.Id, x.FullName, x.Email, x.CreatedAtUtc))
             .FirstOrDefaultAsync(cancellationToken);
 
         if (user is null)
@@ -59,7 +58,7 @@ public class UsersController : ControllerBase
 
         var user = await _dbContext.UserAccounts
             .Where(x => x.Id == userId)
-            .Select(x => new UserView(x.Id, x.FullName, x.Email, x.Role.ToString(), x.CreatedAtUtc))
+            .Select(x => new UserView(x.Id, x.FullName, x.Email, x.CreatedAtUtc))
             .FirstOrDefaultAsync(cancellationToken);
 
         if (user is null)
@@ -70,5 +69,5 @@ public class UsersController : ControllerBase
         return Ok(user);
     }
 
-    public sealed record UserView(Guid Id, string FullName, string Email, string Role, DateTime CreatedAtUtc);
+    public sealed record UserView(Guid Id, string FullName, string Email, DateTime CreatedAtUtc);
 }
