@@ -49,10 +49,23 @@ Merge flow:
 8. Azure deployment
 9. Kubernetes/Jenkins guidance (chat-only, no setup files)
 
+## Quality Gates (Phase 6)
+Minimum checks required before merging to `development` and `main`:
+- Backend build: `dotnet build backend/AutoPilot.Api/AutoPilot.Api.csproj --configuration Release`
+- Backend tests: `dotnet test backend/AutoPilot.Api.Tests/AutoPilot.Api.Tests.csproj --configuration Release`
+- Frontend lint: `npm run lint` (in `frontend`)
+- Frontend tests: `npm run test` (in `frontend`)
+- Frontend build: `npm run build` (in `frontend`)
+
+These gates are enforced in `.github/workflows/ci.yml`.
+
 ## Project Status
 - Planning complete
 - Phase 2 scaffold ready
-- Phase 3 backend foundation (migrations + JWT auth + role baseline) ready
+- Phase 3 backend foundation ready
+- Phase 4 monitoring MVP ready
+- Phase 5 security hardening ready
+- Phase 6 testing and quality gates in progress
 
 ## Notes
 - Planning files are kept local and excluded from git tracking.
