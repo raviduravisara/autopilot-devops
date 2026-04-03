@@ -19,11 +19,11 @@ public class UsersController : ControllerBase
 
     [Authorize]
     [HttpGet]
-    public async Task<ActionResult<IReadOnlyList<UserView>>> List(CancellationToken cancellationToken)
+    public async Task<ActionResult<IReadOnlyList<UserAccountView>>> List(CancellationToken cancellationToken)
     {
         var users = await _dbContext.UserAccounts
             .OrderByDescending(x => x.CreatedAtUtc)
-            .Select(x => new UserView(x.Id, x.FullName, x.Email, x.CreatedAtUtc))
+            .Select(x => new UserAccountView(x.Id, x.FullName, x.Email, x.CreatedAtUtc))
             .ToListAsync(cancellationToken);
 
         return Ok(users);
@@ -31,11 +31,11 @@ public class UsersController : ControllerBase
 
     [Authorize]
     [HttpGet("{id:guid}")]
-    public async Task<ActionResult<UserView>> GetById(Guid id, CancellationToken cancellationToken)
+    public async Task<ActionResult<UserAccountView>> GetById(Guid id, CancellationToken cancellationToken)
     {
         var user = await _dbContext.UserAccounts
             .Where(x => x.Id == id)
-            .Select(x => new UserView(x.Id, x.FullName, x.Email, x.CreatedAtUtc))
+            .Select(x => new UserAccountView(x.Id, x.FullName, x.Email, x.CreatedAtUtc))
             .FirstOrDefaultAsync(cancellationToken);
 
         if (user is null)
@@ -48,7 +48,7 @@ public class UsersController : ControllerBase
 
     [Authorize]
     [HttpGet("me")]
-    public async Task<ActionResult<UserView>> Me(CancellationToken cancellationToken)
+    public async Task<ActionResult<UserAccountView>> Me(CancellationToken cancellationToken)
     {
         var userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (!Guid.TryParse(userIdValue, out var userId))
@@ -58,7 +58,7 @@ public class UsersController : ControllerBase
 
         var user = await _dbContext.UserAccounts
             .Where(x => x.Id == userId)
-            .Select(x => new UserView(x.Id, x.FullName, x.Email, x.CreatedAtUtc))
+            .Select(x => new UserAccountView(x.Id, x.FullName, x.Email, x.CreatedAtUtc))
             .FirstOrDefaultAsync(cancellationToken);
 
         if (user is null)
@@ -69,5 +69,5 @@ public class UsersController : ControllerBase
         return Ok(user);
     }
 
-    public sealed record UserView(Guid Id, string FullName, string Email, DateTime CreatedAtUtc);
+    public sealed record UserAccountView(Guid Id, string FullName, string Email, DateTime CreatedAtUtc);
 }

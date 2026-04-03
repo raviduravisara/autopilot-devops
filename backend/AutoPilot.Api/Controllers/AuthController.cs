@@ -50,7 +50,7 @@ public class AuthController : ControllerBase
         await _dbContext.SaveChangesAsync(cancellationToken);
 
         var token = _tokenService.CreateToken(user);
-        return Ok(new AuthResponse(token, new UserView(user.Id, user.FullName, user.Email, user.CreatedAtUtc)));
+        return Ok(new AuthResponse(token, new AuthUserView(user.Id, user.FullName, user.Email, user.CreatedAtUtc)));
     }
 
     [HttpPost("login")]
@@ -69,11 +69,11 @@ public class AuthController : ControllerBase
         }
 
         var token = _tokenService.CreateToken(user);
-        return Ok(new AuthResponse(token, new UserView(user.Id, user.FullName, user.Email, user.CreatedAtUtc)));
+        return Ok(new AuthResponse(token, new AuthUserView(user.Id, user.FullName, user.Email, user.CreatedAtUtc)));
     }
 
     public sealed record RegisterRequest(string FullName, string Email, string Password);
     public sealed record LoginRequest(string Email, string Password);
-    public sealed record AuthResponse(string AccessToken, UserView User);
-    public sealed record UserView(Guid Id, string FullName, string Email, DateTime CreatedAtUtc);
+    public sealed record AuthResponse(string AccessToken, AuthUserView User);
+    public sealed record AuthUserView(Guid Id, string FullName, string Email, DateTime CreatedAtUtc);
 }
