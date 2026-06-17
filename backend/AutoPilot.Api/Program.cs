@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using Prometheus;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -150,6 +151,8 @@ app.UseMiddleware<CorrelationIdMiddleware>();
 app.UseMiddleware<RequestLoggingMiddleware>();
 app.UseMiddleware<ApiExceptionHandlingMiddleware>();
 
+app.UseHttpMetrics();
+
 app.UseCors("FrontendClients");
 app.UseRateLimiter();
 app.UseAuthentication();
@@ -167,6 +170,8 @@ app.MapGet("/api/health", () => Results.Ok(new
     status = "healthy",
     timestamp = DateTimeOffset.UtcNow
 }));
+
+app.MapMetrics();
 
 app.MapControllers();
 
