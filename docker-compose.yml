@@ -44,6 +44,19 @@ services:
     ports:
       - "5173:5173"
 
+  ai-service:
+    build:
+      context: ./services/ai-service
+      dockerfile: Dockerfile
+    container_name: autopilot-ai-service
+    restart: unless-stopped
+    environment:
+      PROMETHEUS_URL: http://prometheus:9090
+    ports:
+      - "8000:8000"
+    depends_on:
+      - prometheus
+
   prometheus:
     image: prom/prometheus:v2.52.0
     container_name: autopilot-prometheus
