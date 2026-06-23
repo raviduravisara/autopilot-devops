@@ -8,3 +8,9 @@ scrape_configs:
       - targets:
           - backend:8080
     metrics_path: /metrics
+
+  - job_name: autopilot-ai-service
+    static_configs:
+      - targets:
+          - ai-service:8000
+    metrics_path: /metrics
