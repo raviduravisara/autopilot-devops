@@ -15,7 +15,8 @@ const {
   mockCreateMonitor,
   mockDeleteMonitor,
   mockRunMonitorCheck,
-  mockUpdateMonitor
+  mockUpdateMonitor,
+  mockGetAiAnalysis
 } = vi.hoisted(() => ({
   mockLoadToken: vi.fn(),
   mockSaveToken: vi.fn(),
@@ -29,7 +30,8 @@ const {
   mockCreateMonitor: vi.fn(),
   mockDeleteMonitor: vi.fn(),
   mockRunMonitorCheck: vi.fn(),
-  mockUpdateMonitor: vi.fn()
+  mockUpdateMonitor: vi.fn(),
+  mockGetAiAnalysis: vi.fn()
 }));
 
 vi.mock("./api/tokenStore", () => ({
@@ -49,7 +51,8 @@ vi.mock("./api/client", () => ({
   createMonitor: mockCreateMonitor,
   deleteMonitor: mockDeleteMonitor,
   runMonitorCheck: mockRunMonitorCheck,
-  updateMonitor: mockUpdateMonitor
+  updateMonitor: mockUpdateMonitor,
+  getAiAnalysis: mockGetAiAnalysis
 }));
 
 describe("App", () => {
@@ -64,6 +67,7 @@ describe("App", () => {
     mockListMonitors.mockResolvedValue([]);
     mockGetMonitorsSummary.mockResolvedValue({ total: 0, up: 0, down: 0, paused: 0, unknown: 0 });
     mockGetRecentChecks.mockResolvedValue([]);
+    mockGetAiAnalysis.mockResolvedValue(null);
   });
 
   it("shows login form by default", () => {
