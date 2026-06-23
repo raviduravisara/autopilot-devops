@@ -1,0 +1,83 @@
+@AutoPilot.Api_HostAddress = http://localhost:8080
+@BearerToken = replace_with_token_after_login
+@MonitorId = replace_with_monitor_id
+
+GET {{AutoPilot.Api_HostAddress}}/
+Accept: application/json
+
+###
+
+GET {{AutoPilot.Api_HostAddress}}/api/health
+Accept: application/json
+
+###
+
+POST {{AutoPilot.Api_HostAddress}}/api/auth/register
+Content-Type: application/json
+
+{
+  "fullName": "Ravidu Avisara",
+  "email": "ravidu@example.com",
+  "password": "replaceWithStrongPassword1"
+}
+
+###
+
+POST {{AutoPilot.Api_HostAddress}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "ravidu@example.com",
+  "password": "replaceWithStrongPassword1"
+}
+
+###
+
+GET {{AutoPilot.Api_HostAddress}}/api/users/me
+Accept: application/json
+Authorization: Bearer {{BearerToken}}
+
+###
+
+POST {{AutoPilot.Api_HostAddress}}/api/monitors
+Content-Type: application/json
+Authorization: Bearer {{BearerToken}}
+
+{
+  "name": "Google Home",
+  "targetUrl": "https://www.google.com",
+  "method": "GET",
+  "checkIntervalSeconds": 60,
+  "isActive": true
+}
+
+###
+
+GET {{AutoPilot.Api_HostAddress}}/api/monitors
+Accept: application/json
+Authorization: Bearer {{BearerToken}}
+
+###
+
+GET {{AutoPilot.Api_HostAddress}}/api/monitors/summary
+Accept: application/json
+Authorization: Bearer {{BearerToken}}
+
+###
+
+GET {{AutoPilot.Api_HostAddress}}/api/monitors/recent-checks?limit=20
+Accept: application/json
+Authorization: Bearer {{BearerToken}}
+
+###
+
+POST {{AutoPilot.Api_HostAddress}}/api/monitors/{{MonitorId}}/run-check
+Authorization: Bearer {{BearerToken}}
+
+###
+
+GET {{AutoPilot.Api_HostAddress}}/api/monitors/{{MonitorId}}/checks
+Accept: application/json
+Authorization: Bearer {{BearerToken}}
+
+###

@@ -1,0 +1,158 @@
+{
+  "title": "AutoPilot Backend",
+  "uid": "autopilot-backend",
+  "version": 1,
+  "schemaVersion": 39,
+  "refresh": "15s",
+  "time": { "from": "now-1h", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Request Rate (req/sec)",
+      "type": "timeseries",
+      "description": "How many HTTP requests per second your backend is handling",
+      "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "rate(http_requests_received_total{job=\"autopilot-backend\"}[1m])",
+          "legendFormat": "{{method}} {{code}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "color": { "mode": "palette-classic" }
+        }
+      }
+    },
+    {
+      "id": 2,
+      "title": "Response Time (p95)",
+      "type": "timeseries",
+      "description": "95th percentile response time — 95% of requests complete faster than this",
+      "gridPos": { "x": 12, "y": 0, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "histogram_quantile(0.95, rate(http_request_duration_seconds_bucket{job=\"autopilot-backend\"}[1m]))",
+          "legendFormat": "p95 {{method}} {{route}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "color": { "mode": "palette-classic" }
+        }
+      }
+    },
+    {
+      "id": 3,
+      "title": "HTTP Error Rate (4xx + 5xx)",
+      "type": "timeseries",
+      "description": "Rate of failed requests — spikes here mean something is broken",
+      "gridPos": { "x": 0, "y": 8, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "rate(http_requests_received_total{job=\"autopilot-backend\", code=~\"4..|5..\"}[1m])",
+          "legendFormat": "{{code}} errors"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "color": { "fixedColor": "red", "mode": "fixed" }
+        }
+      }
+    },
+    {
+      "id": 4,
+      "title": "Process Memory (MB)",
+      "type": "timeseries",
+      "description": "How much RAM your backend process is using — a steady rise means a memory leak",
+      "gridPos": { "x": 12, "y": 8, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "process_working_set_bytes{job=\"autopilot-backend\"} / 1024 / 1024",
+          "legendFormat": "Working Set MB"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "MB",
+          "color": { "fixedColor": "blue", "mode": "fixed" }
+        }
+      }
+    },
+    {
+      "id": 5,
+      "title": "Total Requests (last 1h)",
+      "type": "stat",
+      "description": "Total number of HTTP requests in the last hour",
+      "gridPos": { "x": 0, "y": 16, "w": 6, "h": 4 },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "increase(http_requests_received_total{job=\"autopilot-backend\"}[1h])"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "steps": [
+              { "color": "green", "value": null }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 6,
+      "title": "Backend Uptime",
+      "type": "stat",
+      "description": "How long the backend process has been running",
+      "gridPos": { "x": 6, "y": 16, "w": 6, "h": 4 },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "time() - process_start_time_seconds{job=\"autopilot-backend\"}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "steps": [
+              { "color": "green", "value": null }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 7,
+      "title": ".NET GC Collections (per min)",
+      "type": "timeseries",
+      "description": "How often .NET garbage collector runs — high frequency can slow your app down",
+      "gridPos": { "x": 12, "y": 16, "w": 12, "h": 4 },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "rate(dotnet_collection_count_total{job=\"autopilot-backend\"}[1m]) * 60",
+          "legendFormat": "Gen{{generation}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": { "mode": "palette-classic" }
+        }
+      }
+    }
+  ]
+}
