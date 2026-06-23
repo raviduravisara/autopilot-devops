@@ -3,6 +3,7 @@ import {
   API_BASE_URL,
   createMonitor,
   deleteMonitor,
+  getAiAnalysis,
   getMe,
   getMonitorsSummary,
   getRecentChecks,
@@ -55,6 +56,7 @@ function App() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [aiAnalysis, setAiAnalysis] = useState(null);
 
   const isAuthenticated = useMemo(() => !!token, [token]);
 
@@ -71,6 +73,12 @@ function App() {
     setSummary(summaryData);
     setRecentChecks(checks);
   }
+
+  useEffect(() => {
+    getAiAnalysis().then(setAiAnalysis);
+    const interval = setInterval(() => getAiAnalysis().then(setAiAnalysis), 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     if (!token) {
@@ -313,6 +321,35 @@ function App() {
                 <p>Loading profile...</p>
               )}
               <button type="button" className="danger" onClick={handleLogout}>Logout</button>
+            </section>
+
+            <section className={`ai-incident-panel ${aiAnalysis ? (aiAnalysis.anomaly_detected ? "anomaly" : "healthy") : "loading"}`}>
+              <div className="ai-panel-header">
+                <span className="ai-status-dot" />
+                <h2>AI Incident Analysis</h2>
+                {aiAnalysis && (
+                  <span className="ai-refresh-time">
+                    Updated {new Date(aiAnalysis.metrics.timestamp * 1000).toLocaleTimeString()}
+                  </span>
+                )}
+              </div>
+              {!aiAnalysis && <p className="ai-loading">Connecting to AI service...</p>}
+              {aiAnalysis && (
+                <div className="ai-panel-body">
+                  <div className="ai-verdict">
+                    <span className="ai-badge">{aiAnalysis.anomaly_detected ? `${aiAnalysis.severity.toUpperCase()} ANOMALY` : "HEALTHY"}</span>
+                    <span className="ai-confidence">Confidence: {Math.round(aiAnalysis.confidence * 100)}%</span>
+                  </div>
+                  <p className="ai-cause"><strong>Diagnosis:</strong> {aiAnalysis.probable_cause}</p>
+                  <p className="ai-action"><strong>Action:</strong> {aiAnalysis.recommended_action}</p>
+                  <div className="ai-metrics-row">
+                    <span>Req/s: {aiAnalysis.metrics.request_rate}</span>
+                    <span>Errors/s: {aiAnalysis.metrics.error_rate}</span>
+                    <span>p95: {aiAnalysis.metrics.p95_response_time}s</span>
+                    <span>Memory: {aiAnalysis.metrics.memory_mb} MB</span>
+                  </div>
+                </div>
+              )}
             </section>
 
             <section className="summary-cards">

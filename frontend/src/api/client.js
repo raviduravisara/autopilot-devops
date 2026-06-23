@@ -92,3 +92,21 @@ export async function runMonitorCheck(token, monitorId) {
 }
 
 export { API_BASE_URL };
+
+const AI_BASE_URL = import.meta.env.VITE_AI_BASE_URL?.trim() || "http://localhost:8000";
+
+export async function getAiAnalysis() {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 8000);
+  try {
+    const response = await fetch(`${AI_BASE_URL}/api/analysis/latest`, {
+      signal: controller.signal
+    });
+    if (!response.ok) return null;
+    return await response.json();
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
