@@ -226,6 +226,111 @@ th {
   color: #991b1b;
 }
 
+.ai-incident-panel {
+  border-radius: 12px;
+  border: 2px solid #86efac;
+  background: #f0fdf4;
+  padding: 1rem;
+}
+
+.ai-incident-panel.anomaly {
+  border-color: #fca5a5;
+  background: #fff1f2;
+}
+
+.ai-incident-panel.loading {
+  border-color: #cbd5e1;
+  background: #f8fafc;
+}
+
+.ai-panel-header {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.ai-panel-header h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.ai-status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #22c55e;
+  flex-shrink: 0;
+}
+
+.ai-incident-panel.anomaly .ai-status-dot {
+  background: #ef4444;
+}
+
+.ai-incident-panel.loading .ai-status-dot {
+  background: #94a3b8;
+}
+
+.ai-refresh-time {
+  margin-left: auto;
+  font-size: 0.8rem;
+  color: #64748b;
+}
+
+.ai-loading {
+  margin: 0.5rem 0 0;
+  color: #64748b;
+  font-size: 0.9rem;
+}
+
+.ai-panel-body {
+  margin-top: 0.75rem;
+  display: grid;
+  gap: 0.4rem;
+}
+
+.ai-verdict {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.ai-badge {
+  font-size: 0.8rem;
+  font-weight: 700;
+  padding: 0.25rem 0.65rem;
+  border-radius: 999px;
+  background: #dcfce7;
+  color: #166534;
+}
+
+.ai-incident-panel.anomaly .ai-badge {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.ai-confidence {
+  font-size: 0.85rem;
+  color: #475569;
+}
+
+.ai-cause,
+.ai-action {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #1e293b;
+}
+
+.ai-metrics-row {
+  display: flex;
+  gap: 1.2rem;
+  flex-wrap: wrap;
+  font-size: 0.8rem;
+  color: #475569;
+  margin-top: 0.25rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid #e2e8f0;
+}
+
 @media (max-width: 768px) {
   .app-shell {
     padding: 1rem;
