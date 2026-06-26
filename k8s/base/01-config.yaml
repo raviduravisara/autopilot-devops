@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: autopilot-config
+  namespace: autopilot
+data:
+  POSTGRES_DB: autopilot_dev
+  POSTGRES_USER: postgres
+  JWT_ISSUER: autopilot-local
+  JWT_AUDIENCE: autopilot-clients
+  JWT_EXPIRES_MINUTES: "60"
+  CORS_ALLOWED_ORIGIN: http://localhost:30173

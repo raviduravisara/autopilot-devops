@@ -1,0 +1,106 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  namespace: autopilot
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: backend
+  template:
+    metadata:
+      labels:
+        app: backend
+    spec:
+      containers:
+        - name: backend
+          image: autopilot-backend:local
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+          env:
+            - name: ASPNETCORE_ENVIRONMENT
+              value: Development
+            - name: ASPNETCORE_URLS
+              value: http://+:8080
+            - name: POSTGRES_DB
+              valueFrom:
+                configMapKeyRef:
+                  name: autopilot-config
+                  key: POSTGRES_DB
+            - name: POSTGRES_USER
+              valueFrom:
+                configMapKeyRef:
+                  name: autopilot-config
+                  key: POSTGRES_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: autopilot-secret
+                  key: POSTGRES_PASSWORD
+            - name: ConnectionStrings__DefaultConnection
+              value: Host=postgres;Port=5432;Database=$(POSTGRES_DB);Username=$(POSTGRES_USER);Password=$(POSTGRES_PASSWORD)
+            - name: Jwt__Issuer
+              valueFrom:
+                configMapKeyRef:
+                  name: autopilot-config
+                  key: JWT_ISSUER
+            - name: Jwt__Audience
+              valueFrom:
+                configMapKeyRef:
+                  name: autopilot-config
+                  key: JWT_AUDIENCE
+            - name: Jwt__ExpiresMinutes
+              valueFrom:
+                configMapKeyRef:
+                  name: autopilot-config
+                  key: JWT_EXPIRES_MINUTES
+            - name: Jwt__SigningKey
+              valueFrom:
+                secretKeyRef:
+                  name: autopilot-secret
+                  key: JWT_SIGNING_KEY
+            - name: Cors__AllowedOrigins__0
+              valueFrom:
+                configMapKeyRef:
+                  name: autopilot-config
+                  key: CORS_ALLOWED_ORIGIN
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 8080
+            initialDelaySeconds: 20
+            periodSeconds: 15
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend
+  namespace: autopilot
+spec:
+  selector:
+    app: backend
+  ports:
+    - port: 8080
+      targetPort: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-nodeport
+  namespace: autopilot
+spec:
+  type: NodePort
+  selector:
+    app: backend
+  ports:
+    - port: 8080
+      targetPort: 8080
+      nodePort: 30080
