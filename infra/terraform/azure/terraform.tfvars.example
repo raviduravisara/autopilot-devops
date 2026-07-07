@@ -1,0 +1,10 @@
+# Copy this file to terraform.tfvars and fill in real values.
+# terraform.tfvars is gitignored - never commit real credentials.
+
+subscription_id         = "your-azure-subscription-id"
+location                = "southeastasia"
+resource_group_name     = "autopilot-rg"
+prefix                  = "autopilot"
+postgres_admin_user     = "autopilotadmin"
+postgres_admin_password = "replace-with-strong-password"
+postgres_database_name  = "autopilot"
