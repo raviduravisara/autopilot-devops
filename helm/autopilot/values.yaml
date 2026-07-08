@@ -1,0 +1,51 @@
+namespace: autopilot
+
+# Non-secret configuration (rendered into a ConfigMap)
+config:
+  postgresDb: autopilot_dev
+  postgresUser: postgres
+  jwtIssuer: autopilot-local
+  jwtAudience: autopilot-clients
+  jwtExpiresMinutes: "60"
+  corsAllowedOrigin: http://localhost:30173
+
+# The Secret is NOT created by this chart. It is managed separately via
+# Sealed Secrets (k8s/base/01-sealedsecret.yaml) or created manually.
+# The chart only references a Secret named per secretName below.
+secretName: autopilot-secret
+
+postgres:
+  image: postgres:16-alpine
+  storage: 1Gi
+
+backend:
+  image: autopilot-backend:local
+  imagePullPolicy: IfNotPresent
+  replicas: 1
+  port: 8080
+  nodePort: 30080
+
+frontend:
+  image: autopilot-frontend:local
+  imagePullPolicy: IfNotPresent
+  replicas: 1
+  port: 5173
+  nodePort: 30173
+  apiBaseUrl: http://localhost:30080
+  aiBaseUrl: http://localhost:30800
+
+aiService:
+  image: autopilot-ai-service:local
+  imagePullPolicy: IfNotPresent
+  replicas: 1
+  port: 8000
+  nodePort: 30800
+  prometheusUrl: http://prometheus:9090
+
+prometheus:
+  image: prom/prometheus:v2.52.0
+  port: 9090
+
+grafana:
+  image: grafana/grafana:10.4.2
+  port: 3000
