@@ -1,128 +1,167 @@
-# AutoPilot DevOps Project
+# AutoPilot DevOps
 
-End-to-end full-stack project using ASP.NET (backend), React (frontend), Docker, GitHub Actions, and Azure.
+An **AI-powered AIOps platform** that combines a full-stack application with a complete DevOps toolchain: containerization, Kubernetes orchestration, GitOps continuous delivery, observability, ML-based incident analysis, security scanning, and Infrastructure as Code.
 
-## Goals
-- Build and run the application locally with Docker.
-- Follow a clean Git workflow using `feature/*`, `development`, and `main`.
-- Apply secure configuration practices with environment variables and GitHub Secrets.
-- Implement CI/CD and deploy to Azure.
+Built as a portfolio-grade, local-first project that runs entirely on a laptop and deploys to Azure in a cost-controlled way.
 
-## Planned Tech Stack
-- Backend: ASP.NET Web API
-- Frontend: React
-- Database: PostgreSQL (local via Docker, cloud via Azure Database for PostgreSQL)
-- Containerization: Docker, Docker Compose
-- CI/CD: GitHub Actions
-- Cloud: Azure (Student subscription)
+---
 
-## Branching Strategy
-- `main`: production-ready, protected, default branch
-- `development`: integration branch for completed features
-- `feature/<feature-name>`: implementation branches
+## What it does
 
-Merge flow:
-1. `feature/*` -> `development`
-2. `development` -> `main`
+Three application services work together, monitored by an observability stack and analyzed by a machine-learning service:
 
-## Security Principles
-- Never commit secrets, API keys, or credentials.
-- Use `.env` for local development only.
-- Use GitHub Secrets for CI/CD and deployment configuration.
-- Keep all sensitive settings environment-based.
+- **Backend (ASP.NET Core 8)** — JWT auth, uptime-monitor CRUD, a background scheduler that polls monitors, and a Prometheus `/metrics` endpoint.
+- **Frontend (React + Vite)** — dashboard for monitors and an **AI Incident Analysis** panel that shows live health, severity, root-cause guess, and recommended action.
+- **AI Service (Python FastAPI + scikit-learn)** — an Isolation Forest model that pulls metrics from Prometheus every 30s, detects anomalies, and returns a diagnosis.
 
-## Local Run (Docker)
-1. Copy `.env.example` to `.env`.
-2. Set `POSTGRES_PASSWORD` and `JWT_SIGNING_KEY` in `.env`.
-3. Run `docker compose up --build`.
-4. Open frontend: `http://localhost:5173`.
-5. Check backend health: `http://localhost:8080/api/health`.
+The platform emits metrics → Prometheus scrapes them → the AI service analyzes them → the frontend surfaces incidents → operators fix issues through Git (GitOps).
 
-## High-Level Implementation Phases
-1. Foundation and repository setup
-2. Solution skeleton and Docker baseline
-3. Backend core implementation (ASP.NET)
-4. Frontend core implementation (React)
-5. Security and configuration hardening
-6. Testing and quality gates
-7. CI/CD with GitHub Actions
-8. Azure deployment
-9. Kubernetes/Jenkins guidance (chat-only, no setup files)
+---
 
-## Quality Gates (Phase 6)
-Minimum checks required before merging to `development` and `main`:
-- Backend build: `dotnet build backend/AutoPilot.Api/AutoPilot.Api.csproj --configuration Release`
-- Backend tests: `dotnet test backend/AutoPilot.Api.Tests/AutoPilot.Api.Tests.csproj --configuration Release`
-- Frontend lint: `npm run lint` (in `frontend`)
-- Frontend tests: `npm run test` (in `frontend`)
-- Frontend build: `npm run build` (in `frontend`)
+## Architecture
 
-These gates are enforced in `.github/workflows/ci.yml`.
+```
+                        ┌──────────────┐
+       browser  ─────▶  │   Frontend   │  (React, NodePort 30173)
+                        └──────┬───────┘
+                               │ REST
+                        ┌──────▼───────┐        ┌──────────────┐
+                        │   Backend    │ ─────▶ │  PostgreSQL  │
+                        │ (ASP.NET 8)  │        └──────────────┘
+                        └──────┬───────┘
+                    /metrics   │
+                        ┌──────▼───────┐        ┌──────────────┐
+                        │  Prometheus  │ ─────▶ │   Grafana    │
+                        └──────┬───────┘        └──────────────┘
+                     scrape    │
+                        ┌──────▼───────┐
+                        │  AI Service  │  (FastAPI + Isolation Forest)
+                        │  anomaly ML  │
+                        └──────────────┘
 
-## CI/CD (Phase 7)
-Branch-aware GitHub Actions setup:
-- `feature/*` and PRs: fast validation (`backend` + `frontend` jobs).
-- `development`: full CI (`backend` + `frontend` + Docker validation).
-- `main`: full CI plus release workflow to publish Docker images to GHCR.
+  Delivery:  Git  ──▶  ArgoCD  ──▶  Kubernetes (kind)      [GitOps]
+  Secrets:   Sealed Secrets (encrypted in Git)
+  CI:        GitHub Actions  +  Jenkins
+  Security:  Trivy (image + dependency scanning)
+  IaC:       Terraform  ──▶  Azure
+```
 
-Workflows:
-- `.github/workflows/ci.yml`
-- `.github/workflows/release-images.yml`
+---
 
-Published images from `main`:
-- `ghcr.io/<owner>/autopilot-backend:latest`
-- `ghcr.io/<owner>/autopilot-frontend:latest`
-- SHA tags are also generated for traceable releases.
+## Tech stack
 
-## Azure Deployment (Phase 8)
-Deployment target: Azure Container Apps (cost-controlled baseline).
+| Area | Technology |
+|------|-----------|
+| Backend | ASP.NET Core 8, EF Core, PostgreSQL, JWT |
+| Frontend | React 18, Vite |
+| AI/ML | Python, FastAPI, scikit-learn (Isolation Forest) |
+| Containers | Docker, Docker Compose |
+| Orchestration | Kubernetes (kind), Helm |
+| GitOps CD | ArgoCD |
+| Secrets | Sealed Secrets |
+| Observability | Prometheus, Grafana |
+| CI | GitHub Actions, Jenkins |
+| Security | Trivy |
+| IaC | Terraform (Azure) |
+| Cloud | Azure Container Apps, Azure Database for PostgreSQL |
 
-Workflow:
-- `.github/workflows/deploy-azure.yml`
-- Trigger mode: manual (`workflow_dispatch`) so you control credit usage.
+---
 
-### Required GitHub Secrets (Repository Secrets)
-- `AZURE_CREDENTIALS` (service principal JSON for `azure/login`)
-- `AZURE_RESOURCE_GROUP`
-- `AZURE_LOCATION` (for example `southeastasia`)
-- `AZURE_CONTAINERAPPS_ENV`
-- `AZURE_BACKEND_APP_NAME`
-- `AZURE_FRONTEND_APP_NAME`
-- `AZURE_POSTGRES_CONNECTION_STRING`
-- `AZURE_JWT_SIGNING_KEY`
-- `AZURE_JWT_ISSUER`
-- `AZURE_JWT_AUDIENCE`
-- `AZURE_FRONTEND_ORIGIN` (frontend URL, used by backend CORS)
-- `AZURE_BACKEND_API_BASE_URL` (backend base URL used by frontend)
-- `GHCR_USERNAME`
-- `GHCR_TOKEN` (PAT with `read:packages` to pull private GHCR images)
+## Repository layout
 
-### Deployment Flow
-1. Merge to `main` to publish images (`release-images.yml`).
-2. In GitHub Actions, run **Deploy to Azure** workflow manually.
-3. Choose image tag (`latest` or a SHA tag).
-4. Workflow creates/updates Azure Container Apps and prints backend/frontend URLs.
+```
+backend/                ASP.NET Core API + tests
+frontend/               React app
+services/ai-service/    Python FastAPI anomaly-detection service
+observability/          Prometheus + Grafana provisioning (compose)
+k8s/                    Kubernetes manifests (kind cluster + base/)
+gitops/argocd/          ArgoCD Application (GitOps)
+helm/autopilot/         Helm chart (alternative deployment)
+infra/terraform/azure/  Terraform IaC for Azure
+.github/workflows/      GitHub Actions (CI, release, deploy, security scan)
+Jenkinsfile             Jenkins pipeline mirroring CI
+docker-compose.yml      Full local stack
+```
 
-### Cost-Control Defaults
-- Min replicas set to `0` (scale to zero when idle).
-- Manual deploy trigger only (no auto deploy on every push).
-- Start with small usage and monitor Azure cost dashboard weekly.
+---
 
-## GitHub Settings Needed
-- Ensure Actions permission allows package write for this repository.
-- Keep `main` protected and require CI checks before merge.
-- Keep secrets in GitHub Secrets only (no plaintext in repo).
+## Run it locally
 
-## Project Status
-- Planning complete
-- Phase 2 scaffold ready
-- Phase 3 backend foundation ready
-- Phase 4 monitoring MVP ready
-- Phase 5 security hardening ready
-- Phase 6 testing and quality gates ready
-- Phase 7 CI/CD pipeline ready
-- Phase 8 Azure deployment baseline ready
+### Option A — Docker Compose (simplest)
 
-## Notes
-- Planning files are kept local and excluded from git tracking.
-- Setup instructions for advanced tools can be provided step-by-step in chat.
+1. Copy `.env.example` to `.env` and set `POSTGRES_PASSWORD`, `JWT_SIGNING_KEY`, `GRAFANA_ADMIN_PASSWORD`.
+2. `docker compose up --build`
+3. Open:
+   - Frontend: `http://localhost:5173`
+   - Backend health: `http://localhost:8080/api/health`
+   - AI analysis: `http://localhost:8000/api/analysis/latest`
+   - Prometheus: `http://localhost:9090`
+   - Grafana: `http://localhost:3000`
+
+### Option B — Kubernetes (kind) with GitOps
+
+1. Create the cluster: `kind create cluster --config k8s/kind-cluster.yaml`
+2. Build and load images:
+   ```
+   docker build -f backend/AutoPilot.Api/Dockerfile -t autopilot-backend:local .
+   docker build -f frontend/Dockerfile -t autopilot-frontend:local .
+   docker build -f services/ai-service/Dockerfile -t autopilot-ai-service:local services/ai-service
+   kind load docker-image autopilot-backend:local autopilot-frontend:local autopilot-ai-service:local --name autopilot
+   ```
+3. Create the namespace and the secret (from local values, never committed):
+   ```
+   kubectl apply -f k8s/base/00-namespace.yaml
+   kubectl apply -f k8s/base/01-sealedsecret.yaml
+   ```
+4. Install ArgoCD and apply the Application — ArgoCD then syncs `k8s/base` from Git automatically:
+   ```
+   kubectl apply -f gitops/argocd/autopilot-app.yaml
+   ```
+5. Access via NodePorts: frontend `30173`, backend `30080`, ai-service `30800`.
+
+### Option C — Helm
+
+```
+helm template autopilot helm/autopilot        # render/preview
+helm install autopilot helm/autopilot         # deploy
+```
+
+---
+
+## DevOps highlights
+
+- **GitOps with ArgoCD** — the cluster state is reconciled from Git automatically (auto-sync, prune, self-heal). Deployments happen by merging to `main`, not by manual `kubectl apply`. Rollback is a `git revert`.
+- **Sealed Secrets** — secrets are encrypted with the cluster's public key and committed safely to Git; only the in-cluster controller can decrypt them. No plaintext credentials in the repo.
+- **Dual CI** — the same quality gates run in both GitHub Actions and a Jenkins pipeline (`Jenkinsfile`), using Docker agents for reproducible builds.
+- **Security scanning** — Trivy scans dependencies and container images for CRITICAL/HIGH vulnerabilities in CI.
+- **AI incident analysis** — an Isolation Forest model turns raw metrics into actionable incident diagnoses surfaced on the dashboard.
+- **Infrastructure as Code** — Azure resources (resource group, PostgreSQL Flexible Server, Container Apps environment) are defined in Terraform with cost-controlled SKUs.
+
+---
+
+## Security & configuration
+
+- No secrets in Git. Local dev uses `.env`; CI/CD uses GitHub Secrets; Kubernetes uses Sealed Secrets.
+- All sensitive settings are environment-based.
+- `main` is the source of truth; feature branches merge in via PRs with CI checks.
+
+---
+
+## Quality gates
+
+Enforced in `.github/workflows/ci.yml` and mirrored in `Jenkinsfile`:
+
+- Backend: `dotnet build` + `dotnet test`
+- Frontend: `npm run lint` + `npm run test` + `npm run build`
+- Docker image builds validated on `main`
+- Trivy security scan (`.github/workflows/security-scan.yml`)
+
+---
+
+## Azure deployment (cost-controlled)
+
+- Terraform provisions the infrastructure (`infra/terraform/azure/`).
+- `.github/workflows/deploy-azure.yml` deploys to Azure Container Apps via manual trigger (`workflow_dispatch`) to control credit usage.
+- Scale-to-zero and lowest-cost SKUs keep idle cost near zero; tear down with `terraform destroy` after demos.
+
+See the workflow file for the required `AZURE_*` and `GHCR_*` GitHub Secrets.
