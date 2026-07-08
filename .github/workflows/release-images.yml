@@ -57,7 +57,25 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: frontend/Dockerfile
+          file: frontend/Dockerfile.prod
           push: true
           tags: ${{ steps.meta-frontend.outputs.tags }}
           labels: ${{ steps.meta-frontend.outputs.labels }}
+
+      - name: Docker metadata (ai-service)
+        id: meta-ai
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/autopilot-ai-service
+          tags: |
+            type=raw,value=latest
+            type=sha
+
+      - name: Build and push ai-service image
+        uses: docker/build-push-action@v6
+        with:
+          context: services/ai-service
+          file: services/ai-service/Dockerfile
+          push: true
+          tags: ${{ steps.meta-ai.outputs.tags }}
+          labels: ${{ steps.meta-ai.outputs.labels }}
