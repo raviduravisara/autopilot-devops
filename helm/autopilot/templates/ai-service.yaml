@@ -1,0 +1,62 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ai-service
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "autopilot.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.aiService.replicas }}
+  selector:
+    matchLabels:
+      app: ai-service
+  template:
+    metadata:
+      labels:
+        app: ai-service
+    spec:
+      containers:
+        - name: ai-service
+          image: {{ .Values.aiService.image }}
+          imagePullPolicy: {{ .Values.aiService.imagePullPolicy }}
+          ports:
+            - containerPort: {{ .Values.aiService.port }}
+          env:
+            - name: PROMETHEUS_URL
+              value: {{ .Values.aiService.prometheusUrl }}
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: {{ .Values.aiService.port }}
+            initialDelaySeconds: 10
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ai-service
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "autopilot.labels" . | nindent 4 }}
+spec:
+  selector:
+    app: ai-service
+  ports:
+    - port: {{ .Values.aiService.port }}
+      targetPort: {{ .Values.aiService.port }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ai-service-nodeport
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "autopilot.labels" . | nindent 4 }}
+spec:
+  type: NodePort
+  selector:
+    app: ai-service
+  ports:
+    - port: {{ .Values.aiService.port }}
+      targetPort: {{ .Values.aiService.port }}
+      nodePort: {{ .Values.aiService.nodePort }}

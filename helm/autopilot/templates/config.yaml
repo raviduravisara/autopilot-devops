@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: autopilot-config
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "autopilot.labels" . | nindent 4 }}
+data:
+  POSTGRES_DB: {{ .Values.config.postgresDb | quote }}
+  POSTGRES_USER: {{ .Values.config.postgresUser | quote }}
+  JWT_ISSUER: {{ .Values.config.jwtIssuer | quote }}
+  JWT_AUDIENCE: {{ .Values.config.jwtAudience | quote }}
+  JWT_EXPIRES_MINUTES: {{ .Values.config.jwtExpiresMinutes | quote }}
+  CORS_ALLOWED_ORIGIN: {{ .Values.config.corsAllowedOrigin | quote }}
