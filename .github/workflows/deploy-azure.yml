@@ -13,7 +13,7 @@ permissions:
 
 jobs:
   deploy:
-    name: Deploy Backend and Frontend to Azure Container Apps
+    name: Deploy Platform to Azure Container Apps
     runs-on: ubuntu-latest
 
     steps:
@@ -34,12 +34,11 @@ jobs:
           AZURE_CONTAINERAPPS_ENV: ${{ secrets.AZURE_CONTAINERAPPS_ENV }}
           AZURE_BACKEND_APP_NAME: ${{ secrets.AZURE_BACKEND_APP_NAME }}
           AZURE_FRONTEND_APP_NAME: ${{ secrets.AZURE_FRONTEND_APP_NAME }}
+          AZURE_AI_APP_NAME: ${{ secrets.AZURE_AI_APP_NAME }}
           AZURE_POSTGRES_CONNECTION_STRING: ${{ secrets.AZURE_POSTGRES_CONNECTION_STRING }}
           AZURE_JWT_SIGNING_KEY: ${{ secrets.AZURE_JWT_SIGNING_KEY }}
           AZURE_JWT_ISSUER: ${{ secrets.AZURE_JWT_ISSUER }}
           AZURE_JWT_AUDIENCE: ${{ secrets.AZURE_JWT_AUDIENCE }}
-          AZURE_FRONTEND_ORIGIN: ${{ secrets.AZURE_FRONTEND_ORIGIN }}
-          AZURE_BACKEND_API_BASE_URL: ${{ secrets.AZURE_BACKEND_API_BASE_URL }}
           GHCR_USERNAME: ${{ secrets.GHCR_USERNAME }}
           GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
           GITHUB_OWNER: ${{ github.repository_owner }}
@@ -51,6 +50,7 @@ jobs:
           OWNER_LOWER=$(echo "$GITHUB_OWNER" | tr '[:upper:]' '[:lower:]')
           BACKEND_IMAGE="ghcr.io/${OWNER_LOWER}/autopilot-backend:${IMAGE_TAG}"
           FRONTEND_IMAGE="ghcr.io/${OWNER_LOWER}/autopilot-frontend:${IMAGE_TAG}"
+          AI_IMAGE="ghcr.io/${OWNER_LOWER}/autopilot-ai-service:${IMAGE_TAG}"
 
           az group create \
             --name "$AZURE_RESOURCE_GROUP" \
@@ -63,6 +63,25 @@ jobs:
               --location "$AZURE_LOCATION"
           fi
 
+          # --- AI service (needs Prometheus; in cloud it runs standalone and
+          #     returns "analysis not available" until metrics exist, which is fine
+          #     for the demo). Deployed first so the frontend can point at it. ---
+          az containerapp up \
+            --name "$AZURE_AI_APP_NAME" \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --environment "$AZURE_CONTAINERAPPS_ENV" \
+            --image "$AI_IMAGE" \
+            --ingress external \
+            --target-port 8000 \
+            --registry-server ghcr.io \
+            --registry-username "$GHCR_USERNAME" \
+            --registry-password "$GHCR_TOKEN" \
+            --min-replicas 0 \
+            --max-replicas 1
+
+          AI_FQDN=$(az containerapp show --name "$AZURE_AI_APP_NAME" --resource-group "$AZURE_RESOURCE_GROUP" --query properties.configuration.ingress.fqdn -o tsv)
+
+          # --- Backend (CORS origin patched after frontend URL is known) ---
           az containerapp up \
             --name "$AZURE_BACKEND_APP_NAME" \
             --resource-group "$AZURE_RESOURCE_GROUP" \
@@ -84,27 +103,38 @@ jobs:
               Jwt__Audience="$AZURE_JWT_AUDIENCE" \
               Jwt__SigningKey=secretref:jwt-signing-key \
               Jwt__ExpiresMinutes=60 \
-              Cors__AllowedOrigins__0="$AZURE_FRONTEND_ORIGIN" \
             --min-replicas 0 \
             --max-replicas 1
 
+          BACKEND_FQDN=$(az containerapp show --name "$AZURE_BACKEND_APP_NAME" --resource-group "$AZURE_RESOURCE_GROUP" --query properties.configuration.ingress.fqdn -o tsv)
+
+          # --- Frontend: runtime config injects the backend + AI URLs at startup ---
           az containerapp up \
             --name "$AZURE_FRONTEND_APP_NAME" \
             --resource-group "$AZURE_RESOURCE_GROUP" \
             --environment "$AZURE_CONTAINERAPPS_ENV" \
             --image "$FRONTEND_IMAGE" \
             --ingress external \
-            --target-port 5173 \
+            --target-port 80 \
             --registry-server ghcr.io \
             --registry-username "$GHCR_USERNAME" \
             --registry-password "$GHCR_TOKEN" \
             --env-vars \
-              VITE_API_BASE_URL="$AZURE_BACKEND_API_BASE_URL" \
+              API_BASE_URL="https://${BACKEND_FQDN}" \
+              AI_BASE_URL="https://${AI_FQDN}" \
             --min-replicas 0 \
             --max-replicas 1
 
-          BACKEND_FQDN=$(az containerapp show --name "$AZURE_BACKEND_APP_NAME" --resource-group "$AZURE_RESOURCE_GROUP" --query properties.configuration.ingress.fqdn -o tsv)
           FRONTEND_FQDN=$(az containerapp show --name "$AZURE_FRONTEND_APP_NAME" --resource-group "$AZURE_RESOURCE_GROUP" --query properties.configuration.ingress.fqdn -o tsv)
 
-          echo "Backend URL: https://${BACKEND_FQDN}"
-          echo "Frontend URL: https://${FRONTEND_FQDN}"
+          # --- Patch backend CORS to allow the now-known frontend origin ---
+          az containerapp update \
+            --name "$AZURE_BACKEND_APP_NAME" \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --set-env-vars "Cors__AllowedOrigins__0=https://${FRONTEND_FQDN}"
+
+          echo "=================================================="
+          echo "Frontend: https://${FRONTEND_FQDN}"
+          echo "Backend:  https://${BACKEND_FQDN}"
+          echo "AI:       https://${AI_FQDN}"
+          echo "=================================================="

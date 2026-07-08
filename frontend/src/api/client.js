@@ -1,4 +1,5 @@
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL?.trim() || "http://localhost:8080";
+const runtimeConfig = typeof window !== "undefined" ? window.__CONFIG__ : undefined;
+const API_BASE_URL = runtimeConfig?.API_BASE_URL?.trim() || import.meta.env.VITE_API_BASE_URL?.trim() || "http://localhost:8080";
 const DEFAULT_TIMEOUT_MS = 15000;
 
 function buildErrorMessage(error, responseStatus, fallback) {
@@ -93,7 +94,7 @@ export async function runMonitorCheck(token, monitorId) {
 
 export { API_BASE_URL };
 
-const AI_BASE_URL = import.meta.env.VITE_AI_BASE_URL?.trim() || "http://localhost:8000";
+const AI_BASE_URL = runtimeConfig?.AI_BASE_URL?.trim() || import.meta.env.VITE_AI_BASE_URL?.trim() || "http://localhost:8000";
 
 export async function getAiAnalysis() {
   const controller = new AbortController();
