@@ -1,8 +1,10 @@
 import asyncio
 import logging
+import time
 
 from prometheus_client import Counter, Gauge
 
+from models.schemas import IncidentAnalysis, MetricSnapshot
 from services.prometheus_client import fetch_current_metrics
 from services.anomaly_detector import analyze
 
@@ -45,6 +47,23 @@ async def _run_loop():
                 )
         except Exception as exc:
             logger.error("Analysis cycle failed: %s", exc)
+            # Telemetry source unreachable (e.g. no Prometheus in this
+            # environment). Publish an honest degraded result instead of
+            # leaving clients with no response at all.
+            _latest_result = IncidentAnalysis(
+                anomaly_detected=False,
+                severity="none",
+                confidence=0.0,
+                probable_cause="AI service is online, but no telemetry source is reachable in this environment",
+                recommended_action="Deploy Prometheus alongside the platform to enable live anomaly detection",
+                metrics=MetricSnapshot(
+                    timestamp=time.time(),
+                    request_rate=0.0,
+                    error_rate=0.0,
+                    p95_response_time=0.0,
+                    memory_mb=0.0,
+                ),
+            )
         await asyncio.sleep(30)
 
 

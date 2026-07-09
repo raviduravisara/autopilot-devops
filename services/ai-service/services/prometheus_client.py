@@ -1,7 +1,8 @@
+import os
 import time
 import httpx
 
-PROMETHEUS_URL = "http://prometheus:9090"
+PROMETHEUS_URL = os.getenv("PROMETHEUS_URL", "http://prometheus:9090")
 
 
 async def query(metric: str) -> float:
