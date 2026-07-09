@@ -24,15 +24,37 @@ $GhcrUser      = "raviduravisara"
 $JwtIssuer     = "autopilot-prod"
 $JwtAudience   = "autopilot-clients"
 
-$BackendImage  = "ghcr.io/$GhcrUser/autopilot-backend:$ImageTag"
-$FrontendImage = "ghcr.io/$GhcrUser/autopilot-frontend:$ImageTag"
-$AiImage       = "ghcr.io/$GhcrUser/autopilot-ai-service:$ImageTag"
+$PrometheusApp = "autopilot-prometheus"
+
+$BackendImage    = "ghcr.io/$GhcrUser/autopilot-backend:$ImageTag"
+$FrontendImage   = "ghcr.io/$GhcrUser/autopilot-frontend:$ImageTag"
+$AiImage         = "ghcr.io/$GhcrUser/autopilot-ai-service:$ImageTag"
+$PrometheusImage = "ghcr.io/$GhcrUser/autopilot-prometheus:$ImageTag"
 
 az config set extension.use_dynamic_install=yes_without_prompt | Out-Null
 
 Write-Host "Reading Postgres connection string from Terraform output..."
 $PostgresConn = terraform -chdir=infra/terraform/azure output -raw postgres_connection_string
 if (-not $PostgresConn) { throw "Could not read postgres_connection_string from terraform output." }
+
+Write-Host "Deploying Prometheus (internal ingress, always 1 replica while running)..."
+az containerapp up `
+    --name $PrometheusApp `
+    --resource-group $ResourceGroup `
+    --environment $AcaEnv `
+    --image $PrometheusImage `
+    --ingress internal `
+    --target-port 9090 `
+    --registry-server ghcr.io `
+    --registry-username $GhcrUser `
+    --registry-password $GhcrToken
+
+# Prometheus must not scale to zero while running, or scraping stops.
+az containerapp update `
+    --name $PrometheusApp `
+    --resource-group $ResourceGroup `
+    --min-replicas 1 `
+    --max-replicas 1 | Out-Null
 
 Write-Host "Deploying AI service..."
 az containerapp up `
@@ -45,6 +67,12 @@ az containerapp up `
     --registry-server ghcr.io `
     --registry-username $GhcrUser `
     --registry-password $GhcrToken
+
+Write-Host "Pointing AI service at in-environment Prometheus..."
+az containerapp update `
+    --name $AiApp `
+    --resource-group $ResourceGroup `
+    --set-env-vars PROMETHEUS_URL="http://$PrometheusApp" | Out-Null
 
 $AiFqdn = az containerapp show --name $AiApp --resource-group $ResourceGroup --query properties.configuration.ingress.fqdn -o tsv
 

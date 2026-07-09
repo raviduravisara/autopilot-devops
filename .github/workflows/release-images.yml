@@ -79,3 +79,21 @@ jobs:
           push: true
           tags: ${{ steps.meta-ai.outputs.tags }}
           labels: ${{ steps.meta-ai.outputs.labels }}
+
+      - name: Docker metadata (prometheus)
+        id: meta-prometheus
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/autopilot-prometheus
+          tags: |
+            type=raw,value=latest
+            type=sha
+
+      - name: Build and push prometheus image
+        uses: docker/build-push-action@v6
+        with:
+          context: observability/prometheus
+          file: observability/prometheus/Dockerfile.azure
+          push: true
+          tags: ${{ steps.meta-prometheus.outputs.tags }}
+          labels: ${{ steps.meta-prometheus.outputs.labels }}

@@ -1,0 +1,4 @@
+# Prometheus for Azure Container Apps: config is baked into the image
+# because Container Apps has no ConfigMap-style file mounting.
+FROM prom/prometheus:v2.52.0
+COPY prometheus.azure.yml /etc/prometheus/prometheus.yml
