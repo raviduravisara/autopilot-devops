@@ -126,10 +126,11 @@ select {
 button {
   border: none;
   border-radius: 10px;
-  background: #7c3aed;
+  background: #f97316;
   color: #ffffff;
-  padding: 0.65rem 0.9rem;
-  font-weight: 600;
+  padding: 1rem 1.75rem;
+  font-size: 1.15rem;
+  font-weight: 700;
   cursor: pointer;
 }
 
