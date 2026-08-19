@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-  API_BASE_URL,
   createMonitor,
   deleteMonitor,
   getAiAnalysis,
