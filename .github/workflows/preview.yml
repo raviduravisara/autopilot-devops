@@ -1,0 +1,23 @@
+name: preview
+
+on:
+  pull_request:
+    types: [opened, synchronize, closed]
+
+permissions:
+  contents: read
+  packages: write
+  pull-requests: write
+
+jobs:
+  preview:
+    uses: raviduravisara/pr-preview/.github/workflows/preview.yml@main
+    with:
+      domain: ravidu.space
+      # The frontend Dockerfile copies from frontend/, so it builds from the repo root.
+      app-path: .
+      dockerfile: frontend/Dockerfile
+      app-port: 5173
+      health-path: ""
+      database: none
+    secrets: inherit
