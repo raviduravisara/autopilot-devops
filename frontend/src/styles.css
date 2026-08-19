@@ -55,7 +55,7 @@ body {
 }
 
 .tab.active {
-  background: #0f766e;
+  background: #7c3aed;
   border-color: #0f766e;
   color: #ffffff;
 }
@@ -126,7 +126,7 @@ select {
 button {
   border: none;
   border-radius: 10px;
-  background: #0f766e;
+  background: #7c3aed;
   color: #ffffff;
   padding: 0.65rem 0.9rem;
   font-weight: 600;
