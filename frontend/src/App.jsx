@@ -261,7 +261,6 @@ function App() {
       <section className="card">
         <header className="card-header">
           <h1>AutoPilot DevOps Monitoring</h1>
-          <p>Backend API: {API_BASE_URL}</p>
         </header>
 
         {!isAuthenticated && (
